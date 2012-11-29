@@ -167,19 +167,25 @@ var log_to_clients = function (msg) {
 };
 
 ////////// Launch server process //////////
-
-var start_server = function (bundle_path, outer_port, inner_port, mongo_url,
-                             on_exit_callback, on_listen_callback) {
+// Takes options:
+// bundlePath
+// outerPort
+// innerPort
+// mongoURL
+// onExit
+// [onListen] 
+// 
+var start_server = function (options) {
   // environment
   var env = {};
   for (var k in process.env)
     env[k] = process.env[k];
-  env.PORT = inner_port;
-  env.MONGO_URL = mongo_url;
-  env.ROOT_URL = env.ROOT_URL || ('http://localhost:' + outer_port);
+  env.PORT = options.innerPort;
+  env.MONGO_URL = options.mongoURL;
+  env.ROOT_URL = env.ROOT_URL || ('http://localhost:' + options.outerPort);
 
   var proc = spawn(process.execPath,
-                   [path.join(bundle_path, 'main.js'), '--keepalive'],
+                   [path.join(options.bundlePath, 'main.js'), '--keepalive'],
                    {env: env});
 
   // XXX deal with test server logging differently?!
@@ -192,7 +198,7 @@ var start_server = function (bundle_path, outer_port, inner_port, mongo_url,
     // string must match server.js
     data = data.replace(/^LISTENING\s*(?:\n|$)/m, '');
     if (data.length != originalLength)
-      on_listen_callback && on_listen_callback();
+      options.onListen && options.onListen();
     if (data)
       log_to_clients({stdout: data});
   });
@@ -209,7 +215,7 @@ var start_server = function (bundle_path, outer_port, inner_port, mongo_url,
       log_to_clients({'exit': 'Exited with code: ' + code});
     }
 
-    on_exit_callback();
+    options.onExit();
   });
 
   // this happens sometimes when we write a keepalive after the app is
@@ -546,21 +552,25 @@ exports.run = function (app_dir, bundle_opts, port) {
 
     start_watching();
     Status.running = true;
-    server_handle = start_server(
-      bundle_path, outer_port, inner_port, mongo_url,
-      function () {
+    server_handle = start_server({
+      bundlePath: bundle_path, 
+      outerPort: outer_port, 
+      innerPort: inner_port, 
+      mongoURL: mongo_url,
+      onExit: function () {
         // on server exit
         Status.running = false;
         Status.listening = false;
         Status.soft_crashed();
         if (!Status.crashing)
           restart_server();
-      }, function () {
+      }, 
+      onListen: function () {
         // on listen
         Status.listening = true;
         _.each(request_queue, function (f) { f(); });
         request_queue = [];
-      });
+      }});
 
 
     // launch test bundle and server if needed.
@@ -574,12 +584,16 @@ exports.run = function (app_dir, bundle_opts, port) {
         });
         files.rm_recursive(test_bundle_path);
       } else {
-        test_server_handle = start_server(
-          test_bundle_path, test_port, test_mongo_url, function () {
+        test_server_handle = start_server({
+          bundlePath: test_bundle_path, 
+          outerPort: test_port,
+          innerPort: test_port, 
+          mongoURL: test_mongo_url, 
+          onExit: function () {
             // No restarting or crash loop prevention on the test server
             // for now. We'll see how annoying it is.
             log_to_clients({'system': "Test server crashed."});
-          });
+          }});
       }
     };
   };
