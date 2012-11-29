@@ -96,6 +96,7 @@ Commands.push({
       .describe('port', 'Port to listen on. NOTE: Also uses port N+1 and N+2.')
       .boolean('production')
       .describe('production', 'Run in production mode. Minify and bundle CSS and JS files.')
+      .describe('settings', 'Make the given JSON file\'s contents available in Meteor.settings')
       .usage(
 "Usage: meteor run [options]\n" +
 "\n" +
@@ -108,14 +109,22 @@ Commands.push({
 "are automatically detected and applied to the running application.\n" +
 "\n" +
 "The application's database persists between runs. It's stored under\n" +
-"the .meteor directory in the root of the project.\n"
-);
+"the .meteor directory in the root of the project.\n");
 
     var new_argv = opt.argv;
-
+    var settings = "";
+    
     if (argv.help) {
       process.stdout.write(opt.help());
       process.exit(1);
+    }
+    if (argv.settings) {
+      try {
+        settings = fs.readFileSync(argv.settings);
+      } catch (e) {
+        process.stdout.write("Could not file settings file {0}".format(argv.settings));
+        process.exit(1);
+      }
     }
 
     var app_dir = path.resolve(require_project("run", true)); // app or package
