@@ -97,6 +97,8 @@ Commands.push({
       .boolean('production')
       .describe('production', 'Run in production mode. Minify and bundle CSS and JS files.')
       .describe('settings', 'Make the given JSON file\'s contents available in Meteor.settings')
+      .boolean('once')
+      .describe('once',  'Only run the project once, and return whatever exit code it returned.')
       .usage(
 "Usage: meteor run [options]\n" +
 "\n" +
@@ -113,7 +115,7 @@ Commands.push({
 
     var new_argv = opt.argv;
     var settings = "";
-    
+
     if (argv.help) {
       process.stdout.write(opt.help());
       process.exit(1);
@@ -122,14 +124,14 @@ Commands.push({
       try {
         settings = fs.readFileSync(argv.settings);
       } catch (e) {
-        process.stdout.write("Could not file settings file {0}".format(argv.settings));
+        process.stdout.write("Could not file settings file " + argv.settings + "\n");
         process.exit(1);
       }
     }
 
     var app_dir = path.resolve(require_project("run", true)); // app or package
     var bundle_opts = { no_minify: !new_argv.production, symlink_dev_bundle: true };
-    require(path.join(__dirname, 'run.js')).run(app_dir, bundle_opts, new_argv.port);
+    require(path.join(__dirname, 'run.js')).run(app_dir, bundle_opts, new_argv.port, new_argv.once, settings);
   }
 });
 
