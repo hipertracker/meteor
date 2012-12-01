@@ -20,7 +20,6 @@ var _ = require(path.join(__dirname, '..', 'lib', 'third', 'underscore.js'));
 var server_log = [];
 
 // port that mongo is running on
-var mongo_port;
 
 var Status = {
   running: false, // is server running now?
@@ -34,9 +33,9 @@ var Status = {
   justCrash : function () {
     var self = this;
     log_to_clients({'exit': "Your application is exiting."});
-    process.stdout.write("Attempting to kill mongo on " + mongo_port + "\n");
     self.shuttingDown = true;
-    _.defer(function() {mongo_runner._find_mongo_and_kill_it_dead(mongo_port, function (err) {
+    _.defer(function() {
+      self.mongoHandle && self.mongoHandle.stop(function (err) {
       if (err)
         process.stdout.write(err.reason + "\n");
       process.exit(self.code);
@@ -499,7 +498,7 @@ var start_update_checks = function () {
 exports.run = function (app_dir, bundle_opts, port, once, settings) {
   var outer_port = port || 3000;
   var inner_port = outer_port + 1;
-  mongo_port = outer_port + 2;
+  var mongo_port = outer_port + 2;
   var test_port = outer_port + 3;
   var bundle_path = path.join(app_dir, '.meteor', 'local', 'build');
   var test_bundle_path = path.join(app_dir, '.meteor', 'local', 'build_test');
@@ -649,7 +648,7 @@ exports.run = function (app_dir, bundle_opts, port, once, settings) {
   var mongo_startup_print_timer;
   var process_startup_printer;
   var launch = function () {
-    mongo_runner.launch_mongo(
+    Status.mongoHandle = mongo_runner.launch_mongo(
       app_dir,
       mongo_port,
       function () { // On Mongo startup complete
